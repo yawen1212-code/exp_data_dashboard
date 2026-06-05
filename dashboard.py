@@ -37,11 +37,16 @@ for i, reactor in enumerate(reactor_names):
             cloud_data = conn.read(worksheet=reactor, usecols=list(range(len(columns))))
             # Drop any empty rows that Google Sheets occasionally sends over
             cloud_data = cloud_data.dropna(how="all")
-        except Exception:
-            # If the worksheet is completely blank, initialize with empty columns
-            cloud_data = pd.DataFrame(columns=columns)
             
-        all_cloud_data[reactor] = cloud_data
+            # --- THE FIX: Force headers if the sheet is empty ---
+            if cloud_data.empty:
+                cloud_data = pd.DataFrame(columns=columns)
+            else:
+                cloud_data.columns = columns 
+                
+        except Exception:
+            # If the worksheet fails to load entirely, initialize with empty columns
+            cloud_data = pd.DataFrame(columns=columns)
 
         # 2. EDIT: Display the interactive table
         edited_df = st.data_editor(
