@@ -68,12 +68,16 @@ for i, reactor in enumerate(reactor_names):
             }
         )
         
-        # 3. WRITE (AUTO-SAVE): If the user makes a change, silently update the Google Sheet
+# 3. WRITE (AUTO-SAVE): If the user makes a change, silently update the Google Sheet
         if not edited_df.equals(cloud_data):
             conn.update(worksheet=reactor, data=edited_df)
+            
+            # --- THE FIX ---
+            # Force Streamlit to clear its memory and fetch the fresh sheet on the next load
+            st.cache_data.clear() 
+            
             st.success(f"✅ Data for {reactor} successfully synced to the cloud!")
             all_cloud_data[reactor] = edited_df # Update local dictionary for summary
-
 st.divider()
 
 # --- 4. MASS COMPARISON SUMMARY ---
