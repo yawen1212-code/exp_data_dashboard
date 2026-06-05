@@ -9,8 +9,7 @@ st.set_page_config(page_title="Experimental Tests Dashboard", layout="wide")
 st.title("🧪 Experimental Tests Summary")
 st.markdown("Enter your reactor run data directly into the tables below. Your data is automatically synced to the cloud via Google Sheets.")
 
-# --- 2. INITIALIZE GOOGLE SHEETS CONNECTION ---
-# Establish connection to the Google Sheet defined in .streamlit/secrets.toml
+# --- 2. INITIALIZE GLOBAL VARIABLES & CONNECTION ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 columns = [
@@ -21,9 +20,11 @@ columns = [
 ]
 
 reactor_names = ["Reactor 1", "Reactor 2", "Reactor 3", "Reactor 4", "Reactor 5"]
-
-# Dictionary to hold the latest data for the overall summary section
 all_cloud_data = {}
+
+# Initialize the Sample ID dropdown options in session state
+if "sample_options" not in st.session_state:
+    st.session_state.sample_options = ["Zeolite13X beads (JL)"]
 
 # --- 3. TABBED INTERFACE (Cloud Synced) ---
 tabs = st.tabs(reactor_names)
@@ -35,20 +36,33 @@ for i, reactor in enumerate(reactor_names):
         # 1. READ: Pull existing data from the Google Sheet tab
         try:
             cloud_data = conn.read(worksheet=reactor, usecols=list(range(len(columns))))
-            # Drop any empty rows that Google Sheets occasionally sends over
             cloud_data = cloud_data.dropna(how="all")
             
-            # --- THE FIX: Force headers if the sheet is empty ---
             if cloud_data.empty:
                 cloud_data = pd.DataFrame(columns=columns)
             else:
                 cloud_data.columns = columns 
                 
+            # AUTO-LEARNING: Add any existing Sample IDs from the database to our dropdown list
+            if "Sample ID" in cloud_data.columns:
+                existing_samples = cloud_data["Sample ID"].dropna().unique()
+                for sample in existing_samples:
+                    if sample not in st.session_state.sample_options and sample != "":
+                        st.session_state.sample_options.append(sample)
+                        
         except Exception:
-            # If the worksheet fails to load entirely, initialize with empty columns
             cloud_data = pd.DataFrame(columns=columns)
 
-        # 2. EDIT: Display the interactive table
+        # 2. QUICK-ADD TOOL: UI to manually add new Sample IDs
+        with st.expander("➕ Need to add a new Sample ID?"):
+            new_sample = st.text_input("Type the new Sample ID label here:", key=f"new_sample_{reactor}")
+            if st.button("Add to Dropdown Options", key=f"add_btn_{reactor}"):
+                if new_sample and new_sample not in st.session_state.sample_options:
+                    st.session_state.sample_options.append(new_sample)
+                    st.success(f"'{new_sample}' added to the dropdown!")
+                    st.rerun() # Refresh the app to update the table immediately
+
+        # 3. EDIT: Display the interactive table
         edited_df = st.data_editor(
             cloud_data,
             num_rows="dynamic",
@@ -59,25 +73,28 @@ for i, reactor in enumerate(reactor_names):
                 "Mode": st.column_config.SelectboxColumn(
                     "Mode",
                     help="Select the operational mode",
-                    options=[
-                        "🔴 Charging",
-                        "🟢 Discharging"
-                    ],
+                    options=["🔴 Charging", "🟢 Discharging"],
+                    required=True
+                ),
+                "Sample ID": st.column_config.SelectboxColumn(
+                    "Sample ID",
+                    help="Select the material sample from the list",
+                    options=st.session_state.sample_options,
                     required=True
                 )
             }
         )
-        
-# 3. WRITE (AUTO-SAVE): If the user makes a change, silently update the Google Sheet
+
+        # 4. WRITE (AUTO-SAVE): If the user makes a change, silently update the Google Sheet
         if not edited_df.equals(cloud_data):
             conn.update(worksheet=reactor, data=edited_df)
             
-            # --- THE FIX ---
-            # Force Streamlit to clear its memory and fetch the fresh sheet on the next load
+            # Clear cache so the fresh data appears on refresh
             st.cache_data.clear() 
             
             st.success(f"✅ Data for {reactor} successfully synced to the cloud!")
-            all_cloud_data[reactor] = edited_df # Update local dictionary for summary
+            all_cloud_data[reactor] = edited_df
+
 st.divider()
 
 # --- 4. MASS COMPARISON SUMMARY ---
@@ -91,7 +108,6 @@ all_data = pd.concat(all_cloud_data.values(), ignore_index=True)
 summary_data = all_data.dropna(subset=["Test No."])
 
 if not summary_data.empty:
-    # Safely convert mass columns to numeric for visualization
     for col in ["Pre-Run Mass (g)", "Post-Run Mass (g)", "Δm"]:
         summary_data[col] = pd.to_numeric(summary_data[col], errors="coerce")
     
@@ -99,7 +115,7 @@ if not summary_data.empty:
     
     with col1:
         # Display isolated dataframe for mass comparison
-        mass_df = summary_data[["Test No.", "Mode", "Pre-Run Mass (g)", "Post-Run Mass (g)", "Δm"]]
+        mass_df = summary_data[["Test No.", "Mode", "Sample ID", "Pre-Run Mass (g)", "Post-Run Mass (g)", "Δm"]]
         st.dataframe(mass_df, use_container_width=True, hide_index=True)
         
     with col2:
@@ -118,7 +134,6 @@ if not summary_data.empty:
             barmode="group",
             title="Pre vs Post Run Mass by Test"
         )
-        # Force the x-axis to be categorical so it displays properly
         fig.update_xaxes(type='category')
         st.plotly_chart(fig, use_container_width=True)
 else:
