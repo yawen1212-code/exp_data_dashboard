@@ -125,11 +125,22 @@ for i, reactor in enumerate(reactor_names):
             }
         )
 
-        # 4. WRITE (AUTO-SAVE): Silently update the Google Sheet
+        # 4. WRITE (AUTO-SAVE): If the user makes a change, calculate Δm and update Google Sheet
         if not edited_df.equals(cloud_data):
+            # --- AUTOMATIC CALCULATION ---
+            # Ensure mass columns are numeric for calculation
+            edited_df["m_pre (g)"] = pd.to_numeric(edited_df["m_pre (g)"], errors="coerce")
+            edited_df["m_post (g)"] = pd.to_numeric(edited_df["m_post (g)"], errors="coerce")
+            
+            # Apply the formula: Δm = m_post - m_pre
+            edited_df["Δm"] = edited_df["m_post (g)"] - edited_df["m_pre (g)"]
+            
+            # Sync to Google Sheets
             conn.update(worksheet=reactor, data=edited_df)
+            
+            # Clear cache and trigger UI refresh
             st.cache_data.clear() 
-            st.success(f"✅ Data for {reactor} successfully synced to the cloud!")
+            st.success(f"✅ Data for {reactor} synced & Δm calculated!")
             all_cloud_data[reactor] = edited_df
 
 st.divider()
