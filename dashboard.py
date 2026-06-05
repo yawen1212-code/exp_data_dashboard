@@ -14,7 +14,7 @@ st.markdown("Enter your reactor run data directly into the tables below. Your da
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 columns = [
-    "Test No.", "Mode", "Start", "Duration(h)", "T_in (°C)", "RH_in %", 
+    "Test No.", "Mode","Start", "Duration(h)", "T_in (°C)", "RH_in %", 
     "Flow Rate_in(L/min)", "Sample ID", "Particle Size (mm)",
     "Pre-Run Mass (g)", "Post-Run Mass (g)", "Δm", "Operator", 
     "Regeneration Method", "Raw Data"
@@ -56,15 +56,18 @@ for i, reactor in enumerate(reactor_names):
             hide_index=True,
             key=f"editor_{reactor}",
             column_config={
-                "Test No.": st.column_config.TextColumn(
-                    "Test No.",
-                    help="Enter test number with status, e.g., '🔴 - 1' or '🟢 - 2'"
+                "Mode": st.column_config.SelectboxColumn(
+                    "Mode",
+                    help="Select the operational mode",
+                    options=[
+                        "🔴 Charging",
+                        "🟢 Discharging"
+                    ],
+                    required=True
                 )
             }
         )
         
-        st.markdown("**Legend:** 🔴 Charging | 🟢 Discharging *(Copy and paste the dots directly into the Test No. column)*")
-
         # 3. WRITE (AUTO-SAVE): If the user makes a change, silently update the Google Sheet
         if not edited_df.equals(cloud_data):
             conn.update(worksheet=reactor, data=edited_df)
@@ -92,7 +95,7 @@ if not summary_data.empty:
     
     with col1:
         # Display isolated dataframe for mass comparison
-        mass_df = summary_data[["Test No.", "Pre-Run Mass (g)", "Post-Run Mass (g)", "Δm"]]
+        mass_df = summary_data[["Test No.", "Mode", "Pre-Run Mass (g)", "Post-Run Mass (g)", "Δm"]]
         st.dataframe(mass_df, use_container_width=True, hide_index=True)
         
     with col2:
@@ -111,7 +114,7 @@ if not summary_data.empty:
             barmode="group",
             title="Pre vs Post Run Mass by Test"
         )
-        # Force the x-axis to be categorical so it displays the emojis properly
+        # Force the x-axis to be categorical so it displays properly
         fig.update_xaxes(type='category')
         st.plotly_chart(fig, use_container_width=True)
 else:
