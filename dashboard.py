@@ -16,7 +16,7 @@ columns = [
     "Test No.", "Aim", "Mode","Start", "Duration(h)", "T_in (°C)", "RH_in %", 
     "Flow Rate_in(L/min)", "Sample ID", "Particle Size (mm)",
     "m_pre (g)", "m_post (g)", "Δm", 
-    "t_re (h)", "T_re (°C)", "Regeneration Method" "Operator", "Raw Data"
+    "t_re (h)", "T_re (°C)", "Regeneration Method", "Operator", "Raw Data"
 ]
 
 reactor_names = ["Reactor 1", "Reactor 2", "Reactor 3", "Reactor 4", "Reactor 5"]
