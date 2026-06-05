@@ -13,7 +13,7 @@ st.markdown("Enter your reactor run data directly into the tables below. Your da
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 columns = [
-    "Test No.", "Aim" "Mode","Start", "Duration(h)", "T_in (°C)", "RH_in %", 
+    "Test No.", "Aim", "Mode","Start", "Duration(h)", "T_in (°C)", "RH_in %", 
     "Flow Rate_in(L/min)", "Sample ID", "Particle Size (mm)",
     "m_pre (g)", "m_post (g)", "Δm", 
     "t_re (h)", "T_re (°C)", "Regeneration Method" "Operator", "Raw Data"
